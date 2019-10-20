@@ -10,7 +10,7 @@ class Path(object):
         elif dataset == 'coco':
             return '/path/to/datasets/coco/'
         elif dataset == 'xview2':
-            return '/path/to/datasets/xview2/'
+            return '/home/ashwin/Desktop/Projects/pytorch-deeplab-xception/data/xview2'
         else:
             print('Dataset {} not available.'.format(dataset))
             raise NotImplementedError

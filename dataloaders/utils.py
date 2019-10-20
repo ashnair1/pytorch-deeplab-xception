@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+
 def decode_seg_map_sequence(label_masks, dataset='pascal'):
     rgb_masks = []
     for label_mask in label_masks:
@@ -12,7 +13,8 @@ def decode_seg_map_sequence(label_masks, dataset='pascal'):
 
 
 def decode_segmap(label_mask, dataset, plot=False):
-    """Decode segmentation class labels into a color image
+    """Decode segmentation class labels into a color image.
+
     Args:
         label_mask (np.ndarray): an (M,N) array of integer values denoting
           the class label at each spatial location.
@@ -27,6 +29,9 @@ def decode_segmap(label_mask, dataset, plot=False):
     elif dataset == 'cityscapes':
         n_classes = 19
         label_colours = get_cityscapes_labels()
+    elif dataset == 'xview2':
+        n_classes = 5
+        label_colours = get_xview2_labels()
     else:
         raise NotImplementedError
 
@@ -49,7 +54,8 @@ def decode_segmap(label_mask, dataset, plot=False):
 
 
 def encode_segmap(mask):
-    """Encode segmentation label images as pascal classes
+    """Encode segmentation label images as pascal classes.
+
     Args:
         mask (np.ndarray): raw segmentation label image of dimension
           (M, N, 3), in which the Pascal classes are encoded as colours.
@@ -65,7 +71,26 @@ def encode_segmap(mask):
     return label_mask
 
 
+def get_xview2_labels():
+    """Load the mapping that associates xview2 classes with label colors.
+
+    Returns:
+        np.ndarray with dimensions (5, 3)
+    """
+    return np.array([
+        [0, 0, 0],
+        [211, 211, 211],
+        [34, 139, 34],
+        [255, 165, 0],
+        [255, 0, 0]])
+
+
 def get_cityscapes_labels():
+    """Load the mapping that associates cityscapes classes with label colors.
+
+    Returns:
+        np.ndarray with dimensions (19, 3)
+    """
     return np.array([
         [128, 64, 128],
         [244, 35, 232],
@@ -89,7 +114,8 @@ def get_cityscapes_labels():
 
 
 def get_pascal_labels():
-    """Load the mapping that associates pascal classes with label colors
+    """Load the mapping that associates pascal classes with label colors.
+
     Returns:
         np.ndarray with dimensions (21, 3)
     """
