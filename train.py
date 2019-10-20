@@ -267,6 +267,7 @@ def main():
             'coco': 30,
             'cityscapes': 200,
             'pascal': 50,
+            'xview2': 30
         }
         args.epochs = epoches[args.dataset.lower()]
 
