@@ -29,7 +29,8 @@ class XView2Segmentation(Dataset):
         """
         super().__init__()
         self._base_dir = base_dir
-        self._image_dir = os.path.join(self._base_dir, 'images')
+        self._preimage_dir = os.path.join(self._base_dir, 'pre_images')
+        self._postimage_dir = os.path.join(self._base_dir, 'post_images')
         self._mask_dir = os.path.join(self._base_dir, 'masks')
 
         if isinstance(split, str):
@@ -45,21 +46,23 @@ class XView2Segmentation(Dataset):
         self.masks = []
 
         for split in self.split:
-            self.im_ids += os.listdir(os.path.join(self._image_dir, split))
-            self.images += [os.path.join(self._base_dir, self._image_dir, split, im) for im in self.im_ids]
-            self.masks += [os.path.join(self._base_dir, self._mask_dir, split, mask) for mask in self.im_ids]
+            self.pre_im_ids += os.listdir(os.path.join(self._preimage_dir, split))
+            self.post_im_ids += os.listdir(os.path.join(self._postimage_dir, split))
+            self.preimages += [os.path.join(self._base_dir, self._preimage_dir, split, im) for im in self.pre_im_ids]
+            self.postimages += [os.path.join(self._base_dir, self._postimage_dir, split, im) for im in self.post_im_ids]
+            self.masks += [os.path.join(self._base_dir, self._mask_dir, split, mask) for mask in self.post_im_ids]
 
-        assert (len(self.images) == len(self.masks))
+        assert (len(self.preimages) == len(self.postimages) == len(self.masks))
 
         # Display stats
-        print('Number of images in {}: {:d}'.format(split, len(self.images)))
+        print('Number of images in {}: {:d}'.format(split, len(self.preimages)))
 
     def __len__(self):
-        return len(self.images)
+        return len(self.preimages)
 
     def __getitem__(self, index):
-        _img, _target = self._make_img_gt_point_pair(index)
-        sample = {'image': _img, 'label': _target}
+        _preimg, _postimg, _target = self._make_img_gt_point_pair(index)
+        sample = {'pre_image': _preimg, 'post_image': _postimg, 'label': _target}
 
         for split in self.split:
             if split == "train":
@@ -69,10 +72,11 @@ class XView2Segmentation(Dataset):
 
 
     def _make_img_gt_point_pair(self, index):
-        _img = Image.open(self.images[index]).convert('RGB')
+        _img1 = Image.open(self.preimages[index]).convert('RGB')
+        _img2 = Image.open(self.postimages[index]).convert('RGB')
         _target = Image.open(self.masks[index])
 
-        return _img, _target
+        return _img1, _img2, _target
 
     def transform_tr(self, sample):
         composed_transforms = transforms.Compose([
