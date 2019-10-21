@@ -46,8 +46,8 @@ class XView2Segmentation(Dataset):
 
         for split in self.split:
             self.im_ids += os.listdir(os.path.join(self._image_dir, split))
-            self.images += [os.path.join(self._base_dir, self._image_dir, split, im) for im in self.im_ids]
-            self.masks += [os.path.join(self._base_dir, self._mask_dir, split, mask) for mask in self.im_ids]
+            self.images += [os.path.join(self._image_dir, split, im) for im in self.im_ids]
+            self.masks += [os.path.join(self._mask_dir, split, mask) for mask in self.im_ids]
 
         assert (len(self.images) == len(self.masks))
 
