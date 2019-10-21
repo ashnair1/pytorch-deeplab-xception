@@ -1,11 +1,10 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3 python train.py \
+CUDA_VISIBLE_DEVICES=0 python train.py \
                                    --backbone resnet \
                                    --lr 0.007 \
-                                   --workers 4 \
-                                   --use-sbd True \
+                                   --workers 1 \
                                    --epochs 50 \
                                    --batch-size 16 \
-                                   --gpu-ids 0,1,2,3 \
+                                   --gpu-ids 0 \
                                    --checkname deeplab-resnet \
                                    --eval-interval 1 \
                                    --dataset xview2

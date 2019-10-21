@@ -6,13 +6,14 @@ from tqdm import tqdm
 from mypath import Path
 from dataloaders import make_data_loader
 from modeling.sync_batchnorm.replicate import patch_replication_callback
-from modeling.deeplab import *
+from modeling.siamesedeeplab import *
 from utils.loss import SegmentationLosses
 from utils.calculate_weights import calculate_weigths_labels
 from utils.lr_scheduler import LR_Scheduler
 from utils.saver import Saver
 from utils.summaries import TensorboardSummary
 from utils.metrics import Evaluator
+
 
 class Trainer(object):
     def __init__(self, args):
@@ -24,17 +25,17 @@ class Trainer(object):
         # Define Tensorboard Summary
         self.summary = TensorboardSummary(self.saver.experiment_dir)
         self.writer = self.summary.create_summary()
-        
+
         # Define Dataloader
         kwargs = {'num_workers': args.workers, 'pin_memory': True}
         self.train_loader, self.val_loader, self.test_loader, self.nclass = make_data_loader(args, **kwargs)
 
         # Define network
-        model = DeepLab(num_classes=self.nclass,
-                        backbone=args.backbone,
-                        output_stride=args.out_stride,
-                        sync_bn=args.sync_bn,
-                        freeze_bn=args.freeze_bn)
+        model = SiameseDeepLab(num_classes=self.nclass,
+                               backbone=args.backbone,
+                               output_stride=args.out_stride,
+                               sync_bn=args.sync_bn,
+                               freeze_bn=args.freeze_bn)
 
         train_params = [{'params': model.get_1x_lr_params(), 'lr': args.lr},
                         {'params': model.get_10x_lr_params(), 'lr': args.lr * 10}]
@@ -46,7 +47,7 @@ class Trainer(object):
         # Define Criterion
         # whether to use class balanced weights
         if args.use_balanced_weights:
-            classes_weights_path = os.path.join(Path.db_root_dir(args.dataset), args.dataset+'_classes_weights.npy')
+            classes_weights_path = os.path.join(Path.db_root_dir(args.dataset), args.dataset + '_classes_weights.npy')
             if os.path.isfile(classes_weights_path):
                 weight = np.load(classes_weights_path)
             else:
@@ -56,12 +57,12 @@ class Trainer(object):
             weight = None
         self.criterion = SegmentationLosses(weight=weight, cuda=args.cuda).build_loss(mode=args.loss_type)
         self.model, self.optimizer = model, optimizer
-        
+
         # Define Evaluator
         self.evaluator = Evaluator(self.nclass)
         # Define lr scheduler
         self.scheduler = LR_Scheduler(args.lr_scheduler, args.lr,
-                                            args.epochs, len(self.train_loader))
+                                      args.epochs, len(self.train_loader))
 
         # Using cuda
         if args.cuda:
@@ -91,17 +92,18 @@ class Trainer(object):
             args.start_epoch = 0
 
     def training(self, epoch):
+        """Initiate training phase."""
         train_loss = 0.0
         self.model.train()
         tbar = tqdm(self.train_loader)
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
-            image, target = sample['image'], sample['label']
+            preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
             if self.args.cuda:
-                image, target = image.cuda(), target.cuda()
+                preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
             self.scheduler(self.optimizer, i, epoch, self.best_pred)
             self.optimizer.zero_grad()
-            output = self.model(image)
+            output = self.model(preimage, postimage)
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
@@ -128,18 +130,18 @@ class Trainer(object):
                 'best_pred': self.best_pred,
             }, is_best)
 
-
     def validation(self, epoch):
+        """Initiate validation phase."""
         self.model.eval()
         self.evaluator.reset()
         tbar = tqdm(self.val_loader, desc='\r')
         test_loss = 0.0
         for i, sample in enumerate(tbar):
-            image, target = sample['image'], sample['label']
+            preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
             if self.args.cuda:
-                image, target = image.cuda(), target.cuda()
+                preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
             with torch.no_grad():
-                output = self.model(image)
+                output = self.model(preimage, postimage)
             loss = self.criterion(output, target)
             test_loss += loss.item()
             tbar.set_description('Test loss: %.3f' % (test_loss / (i + 1)))
@@ -150,18 +152,18 @@ class Trainer(object):
             self.evaluator.add_batch(target, pred)
 
         # Fast test during the training
-        Acc = self.evaluator.Pixel_Accuracy()
-        Acc_class = self.evaluator.Pixel_Accuracy_Class()
+        acc = self.evaluator.Pixel_Accuracy()
+        acc_class = self.evaluator.Pixel_Accuracy_Class()
         mIoU = self.evaluator.Mean_Intersection_over_Union()
-        FWIoU = self.evaluator.Frequency_Weighted_Intersection_over_Union()
+        fwIoU = self.evaluator.Frequency_Weighted_Intersection_over_Union()
         self.writer.add_scalar('val/total_loss_epoch', test_loss, epoch)
         self.writer.add_scalar('val/mIoU', mIoU, epoch)
-        self.writer.add_scalar('val/Acc', Acc, epoch)
-        self.writer.add_scalar('val/Acc_class', Acc_class, epoch)
-        self.writer.add_scalar('val/fwIoU', FWIoU, epoch)
+        self.writer.add_scalar('val/Acc', acc, epoch)
+        self.writer.add_scalar('val/Acc_class', acc_class, epoch)
+        self.writer.add_scalar('val/fwIoU', fwIoU, epoch)
         print('Validation:')
         print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + image.data.shape[0]))
-        print("Acc:{}, Acc_class:{}, mIoU:{}, fwIoU: {}".format(Acc, Acc_class, mIoU, FWIoU))
+        print("Acc:{}, Acc_class:{}, mIoU:{}, fwIoU: {}".format(acc, acc_class, mIoU, fwIoU))
         print('Loss: %.3f' % test_loss)
 
         new_pred = mIoU
@@ -175,6 +177,7 @@ class Trainer(object):
                 'best_pred': self.best_pred,
             }, is_best)
 
+
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
     parser.add_argument('--backbone', type=str, default='resnet',
@@ -183,7 +186,7 @@ def main():
     parser.add_argument('--out-stride', type=int, default=16,
                         help='network output stride (default: 8)')
     parser.add_argument('--dataset', type=str, default='pascal',
-                        choices=['pascal', 'coco', 'cityscapes'],
+                        choices=['pascal', 'coco', 'cityscapes', 'xview2'],
                         help='dataset name (default: pascal)')
     parser.add_argument('--use-sbd', action='store_true', default=True,
                         help='whether to use SBD dataset (default: True)')
@@ -226,8 +229,8 @@ def main():
     parser.add_argument('--nesterov', action='store_true', default=False,
                         help='whether use nesterov (default: False)')
     # cuda, seed and logging
-    parser.add_argument('--no-cuda', action='store_true', default=
-                        False, help='disables CUDA training')
+    parser.add_argument('--no-cuda', action='store_true', default=False,
+                        help='disables CUDA training')
     parser.add_argument('--gpu-ids', type=str, default='0',
                         help='use which gpu to train, must be a \
                         comma-separated list of integers only (default=0)')
@@ -282,12 +285,12 @@ def main():
             'coco': 0.1,
             'cityscapes': 0.01,
             'pascal': 0.007,
+            'xview2': 0.01
         }
         args.lr = lrs[args.dataset.lower()] / (4 * len(args.gpu_ids)) * args.batch_size
 
-
     if args.checkname is None:
-        args.checkname = 'deeplab-'+str(args.backbone)
+        args.checkname = 'deeplab-' + str(args.backbone)
     print(args)
     torch.manual_seed(args.seed)
     trainer = Trainer(args)
@@ -301,4 +304,4 @@ def main():
     trainer.writer.close()
 
 if __name__ == "__main__":
-   main()
+    main()
