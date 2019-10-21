@@ -41,16 +41,18 @@ class XView2Segmentation(Dataset):
 
         self.args = args
 
-        self.im_ids = []
-        self.images = []
+        self.pre_im_ids = []
+        self.post_im_ids = []
+        self.preimages = []
+        self.postimages = []
         self.masks = []
 
         for split in self.split:
             self.pre_im_ids += os.listdir(os.path.join(self._preimage_dir, split))
             self.post_im_ids += os.listdir(os.path.join(self._postimage_dir, split))
-            self.preimages += [os.path.join(self._base_dir, self._preimage_dir, split, im) for im in self.pre_im_ids]
-            self.postimages += [os.path.join(self._base_dir, self._postimage_dir, split, im) for im in self.post_im_ids]
-            self.masks += [os.path.join(self._base_dir, self._mask_dir, split, mask) for mask in self.post_im_ids]
+            self.preimages += [os.path.join(self._preimage_dir, split, im) for im in self.pre_im_ids]
+            self.postimages += [os.path.join(self._postimage_dir, split, im) for im in self.post_im_ids]
+            self.masks += [os.path.join(self._mask_dir, split, mask) for mask in self.post_im_ids]
 
         assert (len(self.preimages) == len(self.postimages) == len(self.masks))
 
@@ -117,22 +119,30 @@ if __name__ == '__main__':
     dataloader = DataLoader(xtrain, batch_size=5, shuffle=True, num_workers=0)
 
     for ii, sample in enumerate(dataloader):
-        for jj in range(sample["image"].size()[0]):
-            img = sample['image'].numpy()
+        for jj in range(sample["pre_image"].size()[0]):
+            preimg = sample['pre_image'].numpy()
+            postimg = sample['post_image'].numpy()
             gt = sample['label'].numpy()
             tmp = np.array(gt[jj]).astype(np.uint8)
             segmap = decode_segmap(tmp, dataset='xview2')
-            img_tmp = np.transpose(img[jj], axes=[1, 2, 0])
-            img_tmp *= (0.229, 0.224, 0.225)
-            img_tmp += (0.485, 0.456, 0.406)
-            img_tmp *= 255.0
-            img_tmp = img_tmp.astype(np.uint8)
+            preimg_tmp = np.transpose(preimg[jj], axes=[1, 2, 0])
+            preimg_tmp *= (0.229, 0.224, 0.225)
+            preimg_tmp += (0.485, 0.456, 0.406)
+            preimg_tmp *= 255.0
+            preimg_tmp = preimg_tmp.astype(np.uint8)
+            postimg_tmp = np.transpose(postimg[jj], axes=[1, 2, 0])
+            postimg_tmp *= (0.229, 0.224, 0.225)
+            postimg_tmp += (0.485, 0.456, 0.406)
+            postimg_tmp *= 255.0
+            postimg_tmp = postimg_tmp.astype(np.uint8)
             plt.figure()
             plt.axis('off')
             plt.title('display')
-            plt.subplot(121)
-            plt.imshow(img_tmp)
-            plt.subplot(122)
+            plt.subplot(131)
+            plt.imshow(preimg_tmp)
+            plt.subplot(132)
+            plt.imshow(postimg_tmp)
+            plt.subplot(133)
             plt.imshow(segmap)
 
         if ii == 1:
