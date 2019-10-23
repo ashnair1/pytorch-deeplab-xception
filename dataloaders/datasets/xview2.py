@@ -135,15 +135,20 @@ if __name__ == '__main__':
             postimg_tmp += (0.485, 0.456, 0.406)
             postimg_tmp *= 255.0
             postimg_tmp = postimg_tmp.astype(np.uint8)
-            plt.figure()
-            plt.axis('off')
-            plt.title('display')
-            plt.subplot(131)
-            plt.imshow(preimg_tmp)
-            plt.subplot(132)
-            plt.imshow(postimg_tmp)
-            plt.subplot(133)
-            plt.imshow(segmap)
+
+            fig = plt.figure()
+            ax1 = fig.add_subplot(131)
+            ax1.title.set_text('Pre Disaster')
+            ax1.axis('off')
+            ax1.imshow(preimg_tmp)
+            ax2 = fig.add_subplot(132)
+            ax2.title.set_text('Post Disaster')
+            ax2.axis('off')
+            ax2.imshow(postimg_tmp)
+            ax3 = fig.add_subplot(133)
+            ax3.title.set_text('Segmentation Map')
+            ax3.axis('off')
+            ax3.imshow(segmap)
 
         if ii == 1:
             break

@@ -6,6 +6,7 @@ from modeling.aspp import build_aspp
 from modeling.decoder import build_decoder
 from modeling.backbone import build_backbone
 
+
 class SiameseDeepLab(nn.Module):
     def __init__(self, backbone='resnet', output_stride=16, num_classes=21,
                  sync_bn=True, freeze_bn=False):
@@ -13,7 +14,7 @@ class SiameseDeepLab(nn.Module):
         if backbone == 'drn':
             output_stride = 8
 
-        if sync_bn == True:
+        if sync_bn is True:
             BatchNorm = SynchronizedBatchNorm2d
         else:
             BatchNorm = nn.BatchNorm2d
