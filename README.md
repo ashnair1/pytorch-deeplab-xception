@@ -73,7 +73,37 @@ Fellow steps below to train your model:
 3. To train deeplabv3+ using COCO dataset and ResNet as backbone:
     ```Shell
     bash train_coco.sh
-    ```    
+    ```
+
+### Docker
+Clone the repository and then build the container via the Dockerfile provided.
+```shell
+git clone https://github.com/ashnair1/pytorch-deeplab-xception.git
+# Build the docker image
+nvidia-docker build --no-cache -f ./docker/Dockerfile -t deeplab .
+# Create a container and mount the repository volume
+nvidia-docker run -it -d --name=pansat -v /path/to/cloned_repo:/workspace/Deeplabv3+ deeplab /bin/bash
+# Begin training
+nvidia-docker exec deeplab sh train_coco.sh
+```
+
+##### Note: 
+For running the shell script to split images across multiple GPUs for inference, use the following command:
+```shell
+nvidia-docker exec container_id /workspace/PANSAT/run_pan_gpu.sh
+```
+
+### Singularity
+Clone the repository and then build the container via the recipe file provided.
+```shell
+git clone https://github.com/ashnair1/pytorch-deeplab-xception.git
+# Build the singularity container on a machine where you have root access
+sudo singularity build ./singularity/deeplab.sif ./singularity/recipe.txt
+# Test for proper installation of torch
+singularity exec ./singularity/deeplab.sif python -c "import torch; x = torch.empty(5, 3); print(x); exit"
+# Begin training
+singularity exec --nv ./singularity/deeplab.sif sh train.sh
+```
 
 ### Acknowledgement
 [PyTorch-Encoding](https://github.com/zhanghang1989/PyTorch-Encoding)

@@ -1,0 +1,14 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:18.08-py3
+
+%files
+    singularity/dl_requirements.txt /tmp/
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends
+    apt-get -y install libglib2.0-0 libxrender1 libsm6 libxext6
+    export PATH=$PATH:/opt/conda/envs/pytorch-py3.6/bin
+    pip install Cython==0.29.2 
+    pip install --upgrade pip
+    pip install --no-cache-dir -r /tmp/dl_requirements.txt
+    
