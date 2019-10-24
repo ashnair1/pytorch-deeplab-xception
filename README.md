@@ -87,12 +87,6 @@ nvidia-docker run -it -d --name=pansat -v /path/to/cloned_repo:/workspace/Deepla
 nvidia-docker exec deeplab sh train_coco.sh
 ```
 
-##### Note: 
-For running the shell script to split images across multiple GPUs for inference, use the following command:
-```shell
-nvidia-docker exec container_id /workspace/PANSAT/run_pan_gpu.sh
-```
-
 ### Singularity
 Clone the repository and then build the container via the recipe file provided.
 ```shell
