@@ -26,8 +26,14 @@ class SiameseDeepLab(nn.Module):
         if freeze_bn:
             self.freeze_bn()
 
-    def forward(self, input):
+    def forward(self, input, input1):
         x, low_level_feat = self.backbone(input)
+        x1, low_level_feat1 = self.backbone(input1)
+        # Concatenating cause I don't know what else
+        ##################################################
+        x = torch.cat((x, x1), dim=1)
+        low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
+        ##################################################
         x = self.aspp(x)
         x = self.decoder(x, low_level_feat)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)

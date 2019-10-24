@@ -112,12 +112,13 @@ class Trainer(object):
             self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
 
             # Show 10 * 3 inference results each epoch
-            if i % (num_img_tr // 10) == 0:
+            if i % (num_img_tr // 2) == 0:
                 global_step = i + num_img_tr * epoch
-                self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
+                self.summary.visualize_image(self.writer, self.args.dataset, postimage, target, output, global_step)
+                #self.summary.visualize_image_pre_post(self.writer, self.args.dataset, preimage, postimage, target, output, global_step)
 
         self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
-        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + image.data.shape[0]))
+        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + preimage.data.shape[0]))
         print('Loss: %.3f' % train_loss)
 
         if self.args.no_val:
@@ -162,7 +163,7 @@ class Trainer(object):
         self.writer.add_scalar('val/Acc_class', acc_class, epoch)
         self.writer.add_scalar('val/fwIoU', fwIoU, epoch)
         print('Validation:')
-        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + image.data.shape[0]))
+        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + preimage.data.shape[0]))
         print("Acc:{}, Acc_class:{}, mIoU:{}, fwIoU: {}".format(acc, acc_class, mIoU, fwIoU))
         print('Loss: %.3f' % test_loss)
 

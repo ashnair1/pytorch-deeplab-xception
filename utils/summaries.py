@@ -21,3 +21,15 @@ class TensorboardSummary(object):
         grid_image = make_grid(decode_seg_map_sequence(torch.squeeze(target[:3], 1).detach().cpu().numpy(),
                                                        dataset=dataset), 3, normalize=False, range=(0, 255))
         writer.add_image('Groundtruth label', grid_image, global_step)
+
+    def visualize_image_pre_post(self, writer, dataset, preimage, postimage, target, output, global_step):
+        grid_image1 = make_grid(preimage[:3].clone().cpu().data, 3, normalize=True)
+        grid_image2 = make_grid(postimage[:3].clone().cpu().data, 3, normalize=True)
+        writer.add_image('PreImage', grid_image1, global_step)
+        writer.add_image('PostImage', grid_image2, global_step)
+        grid_image = make_grid(decode_seg_map_sequence(torch.max(output[:3], 1)[1].detach().cpu().numpy(),
+                                                       dataset=dataset), 3, normalize=False, range=(0, 255))
+        writer.add_image('Predicted label', grid_image, global_step)
+        grid_image = make_grid(decode_seg_map_sequence(torch.squeeze(target[:3], 1).detach().cpu().numpy(),
+                                                       dataset=dataset), 3, normalize=False, range=(0, 255))
+        writer.add_image('Groundtruth label', grid_image, global_step)
