@@ -32,14 +32,16 @@ class _ASPPModule(nn.Module):
                 m.bias.data.zero_()
 
 class ASPP(nn.Module):
-    def __init__(self, backbone, output_stride, BatchNorm):
+    def __init__(self, backbone, output_stride, BatchNorm, siamese=False):
         super(ASPP, self).__init__()
         if backbone == 'drn':
             inplanes = 512
         elif backbone == 'mobilenet':
             inplanes = 320
         else:
-            inplanes = 4096#2048
+            inplanes = 2048
+        if siamese is True:
+            inplanes = inplanes * 2
         if output_stride == 16:
             dilations = [1, 6, 12, 18]
         elif output_stride == 8:
@@ -75,6 +77,9 @@ class ASPP(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
+        import pdb
+        pdb.set_trace()
+
         return self.dropout(x)
 
     def _init_weight(self):
@@ -91,5 +96,5 @@ class ASPP(nn.Module):
                 m.bias.data.zero_()
 
 
-def build_aspp(backbone, output_stride, BatchNorm):
-    return ASPP(backbone, output_stride, BatchNorm)
+def build_aspp(backbone, output_stride, BatchNorm, siamese=False):
+    return ASPP(backbone, output_stride, BatchNorm, siamese)

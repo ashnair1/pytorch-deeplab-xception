@@ -1,10 +1,11 @@
-CUDA_VISIBLE_DEVICES=0 python train.py \
-                                   --backbone resnet \
-                                   --lr 0.007 \
-                                   --workers 1 \
-                                   --epochs 20 \
-                                   --batch-size 2 \
-                                   --gpu-ids 0 \
-                                   --checkname deeplab-resnet \
-                                   --eval-interval 1 \
-                                   --dataset xview2
+python train.py \
+ --backbone resnet \
+ --lr 0.007 \
+ --workers 4 \
+ --epochs 20 \
+ --batch-size 32 \
+ --loss-type focal \
+ --gpu-ids 0,1,2,3,4,5,6,7 \
+ --checkname deeplab-resnet \
+ --eval-interval 1 \
+ --dataset xview2

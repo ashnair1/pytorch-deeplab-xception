@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from modeling.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from modeling.aspp import build_aspp
+from modeling.aaspp import build_aaspp
 from modeling.decoder import build_decoder
 from modeling.backbone import build_backbone
 
@@ -20,7 +21,8 @@ class SiameseDeepLab(nn.Module):
             BatchNorm = nn.BatchNorm2d
 
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
-        self.aspp = build_aspp(backbone, output_stride, BatchNorm)
+        self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
+        #self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=True)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm)
 
         if freeze_bn:

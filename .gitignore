@@ -110,3 +110,6 @@ venv.bak/
 /data
 *.png
 *.jpg
+
+# Singularity
+*.sif
