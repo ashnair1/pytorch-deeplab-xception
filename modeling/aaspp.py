@@ -57,29 +57,39 @@ class Flatten(nn.Module):
 
 
 class _FusionModule(nn.Module):
-    def __init__(self, inplanes, planes, kernel_size, dilations, BatchNorm):
+    def __init__(self, inplanes, planes, kernel_size, dilations=None, BatchNorm):
         super(_FusionModule, self).__init__()
 
         # Standard Convolutions
-        self.atrous_blocks = nn.ModuleList([_AtrousConvBlock(inplanes, 
-                                                             planes, 
-                                                             kernel_size, 
-                                                             dilation, 
-                                                             dilation, 
-                                                             BatchNorm) for dilation in dilations])
-        self.linear = nn.Linear(256*33*33, 20)
+        self.conv_list = nn.ModuleList([nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1),
+                                          BatchNorm(planes),
+                                          nn.ReLU(),
+                                          nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1),
+                                          BatchNorm(planes),
+                                          nn.ReLU()])
+        self.conv_block = nn.Sequential(*self.conv_list)
+
+        self.linear = nn.Sequential(nn.Conv2d(planes, planes, kernel_size=1)
+                                    #nn.Linear(256*33*33, 1),
+                                    Flatten(),
+                                    )
+
+
 
 
         self.trace = []
 
     def forward(self, x):
-        for block in self.atrous_blocks:
-            x = block(x)
-            self.trace.append(x)
-            print("1")
-        import pdb
-        pdb.set_trace()
-        x = torch.flatten(x, 1)
+
+        xf = self.conv_block(x)
+        ###########################
+        xf = torch.flatten(xf, 1)
+        xf = self.linear(xf)
+        xf = 'blah'
+        ########################
+        # Reshape
+        xf = xf.view(-1, 256, 33, 33)
+
         return x
 
 
@@ -122,7 +132,7 @@ class AASPP(nn.Module):
         self.bn1 = BatchNorm(256)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
-        self.fusion = _FusionModule(inplanes, 256, 3, dilations=[1, 1], BatchNorm=BatchNorm)
+        self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
         self._init_weight()
 
     def forward(self, x):
