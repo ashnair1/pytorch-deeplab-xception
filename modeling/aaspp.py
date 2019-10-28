@@ -67,8 +67,8 @@ class _FusionModule(nn.Module):
                                                              dilation, 
                                                              dilation, 
                                                              BatchNorm) for dilation in dilations])
+        self.linear = nn.Linear(256*33*33, 20)
 
-        self.atrous_blocks.append(Flatten)
 
         self.trace = []
 
@@ -76,6 +76,10 @@ class _FusionModule(nn.Module):
         for block in self.atrous_blocks:
             x = block(x)
             self.trace.append(x)
+            print("1")
+        import pdb
+        pdb.set_trace()
+        x = torch.flatten(x, 1)
         return x
 
 
@@ -135,6 +139,9 @@ class AASPP(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
+        import pdb
+        pdb.set_trace()
+
         assert x.shape == xf.shape
         x.add_(xf) 
 
@@ -155,4 +162,4 @@ class AASPP(nn.Module):
 
 
 def build_aaspp(backbone, output_stride, BatchNorm, siamese=False):
-    return AASPP(backbone, output_stride, BatchNorm, siamese=False)
+    return AASPP(backbone, output_stride, BatchNorm, siamese)
