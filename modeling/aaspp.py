@@ -36,61 +36,56 @@ class _AASPPModule(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, dilations, BatchNorm):
         super(_AASPPModule, self).__init__()
 
-        self.atrous_blocks = nn.ModuleList([_AtrousConvBlock(inplanes, 
-                                                             planes, 
-                                                             kernel_size, 
-                                                             dilation, 
-                                                             dilation, 
-                                                             BatchNorm) for dilation in dilations])
+        self.atrous_list = nn.ModuleList([_AtrousConvBlock(inplanes, planes, kernel_size, dilations[0], dilations[0], BatchNorm)] +
+                                         [_AtrousConvBlock(planes,planes, kernel_size, dilation, dilation, BatchNorm) for dilation in dilations[1:]])
+        self.atrous_blocks = nn.Sequential(*self.atrous_list) 
         self.trace = []
 
     def forward(self, x):
-        for block in self.atrous_blocks:
-            x = block(x)
-            self.trace.append(x)
+        self.atrous_blocks(x)
         return x
 
-class Flatten(nn.Module):
-    def forward(self, x):
-        N, C, H, W = x.size() # read in N, C, H, W
-        return x.view(N, -1)
+# class Flatten(nn.Module):
+#     def forward(self, x):
+#         N, C, H, W = x.size() # read in N, C, H, W
+#         return x.view(N, -1)
 
 
-class _FusionModule(nn.Module):
-    def __init__(self, inplanes, planes, kernel_size, dilations=None, BatchNorm):
-        super(_FusionModule, self).__init__()
+# class _FusionModule(nn.Module):
+#     def __init__(self, inplanes, planes, kernel_size, BatchNorm):
+#         super(_FusionModule, self).__init__()
 
-        # Standard Convolutions
-        self.conv_list = nn.ModuleList([nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1),
-                                          BatchNorm(planes),
-                                          nn.ReLU(),
-                                          nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1),
-                                          BatchNorm(planes),
-                                          nn.ReLU()])
-        self.conv_block = nn.Sequential(*self.conv_list)
+#         # Standard Convolutions
+#         self.conv_list = nn.ModuleList([nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1),
+#                                           BatchNorm(planes),
+#                                           nn.ReLU(),
+#                                           nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1),
+#                                           BatchNorm(planes),
+#                                           nn.ReLU()])
+#         self.conv_block = nn.Sequential(*self.conv_list)
 
-        self.linear = nn.Sequential(nn.Conv2d(planes, planes, kernel_size=1)
-                                    #nn.Linear(256*33*33, 1),
-                                    Flatten(),
-                                    )
-
-
+#         #self.linear = nn.Sequential(nn.Conv2d(planes, planes, kernel_size=1)
+#         #                            #nn.Linear(256*33*33, 1),
+#         #                            Flatten(),
+#         #                            )
 
 
-        self.trace = []
 
-    def forward(self, x):
 
-        xf = self.conv_block(x)
-        ###########################
-        xf = torch.flatten(xf, 1)
-        xf = self.linear(xf)
-        xf = 'blah'
-        ########################
-        # Reshape
-        xf = xf.view(-1, 256, 33, 33)
+#         self.trace = []
 
-        return x
+#     def forward(self, x):
+
+#         xf = self.conv_block(x)
+#         ###########################
+#         xf = torch.flatten(xf, 1)
+#         xf = self.linear(xf)
+#         xf = 'blah'
+#         ########################
+#         # Reshape
+#         xf = xf.view(-1, 256, 33, 33)
+
+#         return x
 
 
 class AASPP(nn.Module):
@@ -107,16 +102,19 @@ class AASPP(nn.Module):
             inplanes = inplanes * 2
 
         if output_stride == 16:
-            dilations = [1, 6, 12, 18]
+            dilations = [[1],
+                         [3, 6, 4, 2],
+                         [6, 12, 6, 4], 
+                         [12, 18, 12, 6]]
         elif output_stride == 8:
-            dilations = [1, 12, 24, 36]
+            dilations = [[1],
+                         [6, 12, 8, 4],
+                         [12, 24, 12, 8], 
+                         [24, 36, 24, 12]]
         else:
             raise NotImplementedError
 
-        dilations = [[1],
-                     [3, 6, 4, 2],
-                     [6, 12, 6, 4], 
-                     [12, 18, 12, 6]]
+        
 
         # ASPP 1x1 convolution
         self.aaspp1 = _AASPPModule(inplanes, 256, 1, dilations=dilations[0], BatchNorm=BatchNorm)
@@ -128,15 +126,16 @@ class AASPP(nn.Module):
                                              nn.Conv2d(inplanes, 256, 1, stride=1, bias=False),
                                              BatchNorm(256),
                                              nn.ReLU())
-        self.conv1 = nn.Conv2d(1280, 256, 1, bias=False)
+        #self.conv1 = nn.Conv2d(1280, 256, 1, bias=False)
+        self.conv1 = nn.Conv2d(16640, 256, 1, bias=False)
         self.bn1 = BatchNorm(256)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
-        self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
+        #self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
         self._init_weight()
 
     def forward(self, x):
-        xf = self.fusion(x)
+        #xf = self.fusion(x)
         x1 = self.aaspp1(x)
         x2 = self.aaspp2(x)
         x3 = self.aaspp3(x)
@@ -149,11 +148,8 @@ class AASPP(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        import pdb
-        pdb.set_trace()
-
-        assert x.shape == xf.shape
-        x.add_(xf) 
+        #assert x.shape == xf.shape
+        #x.add_(xf) 
 
         return self.dropout(x)
 

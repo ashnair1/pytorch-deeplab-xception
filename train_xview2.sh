@@ -1,11 +1,11 @@
 python train.py \
- --backbone resnet \
- --lr 0.007 \
+ --backbone xception \
+ --lr 0.07 \
  --workers 4 \
  --epochs 20 \
  --batch-size 32 \
  --loss-type focal \
  --gpu-ids 0,1,2,3,4,5,6,7 \
- --checkname deeplab-resnet \
+ --checkname deeplab-xception \
  --eval-interval 1 \
  --dataset xview2

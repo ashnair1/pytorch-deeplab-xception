@@ -23,7 +23,7 @@ class SiameseDeepLab(nn.Module):
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
         #self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
         self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=True)
-        self.decoder = build_decoder(num_classes, backbone, BatchNorm)
+        self.decoder = build_decoder(num_classes, backbone, BatchNorm, siamese=True)
 
         if freeze_bn:
             self.freeze_bn()

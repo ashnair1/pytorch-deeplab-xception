@@ -267,13 +267,13 @@ def main():
 
     # default settings for epochs, batch_size and lr
     if args.epochs is None:
-        epoches = {
+        epochs = {
             'coco': 30,
             'cityscapes': 200,
             'pascal': 50,
             'xview2': 30
         }
-        args.epochs = epoches[args.dataset.lower()]
+        args.epochs = epochs[args.dataset.lower()]
 
     if args.batch_size is None:
         args.batch_size = 4 * len(args.gpu_ids)
