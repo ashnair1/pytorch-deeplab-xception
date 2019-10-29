@@ -1,6 +1,6 @@
 python train.py \
- --backbone drn \
- --lr 0.1 \
+ --backbone xception \
+ --lr 0.07 \
  --workers 4 \
  --epochs 20 \
  --batch-size 32 \
@@ -8,8 +8,8 @@ python train.py \
  --base-size 1024 \
  --crop-size 256 \
  --gpu-ids 0,1,2,3,4,5,6,7 \
- --checkname deeplab-drn \
+ --checkname deeplab-xception \
+ --resume ./run/xview2/deeplab-xception/experiment_1/checkpoint.pth.tar \
  --ft \
- --use-balanced-weights \
  --eval-interval 1 \
  --dataset xview2
