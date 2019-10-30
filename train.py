@@ -286,7 +286,7 @@ def main():
             'coco': 0.1,
             'cityscapes': 0.01,
             'pascal': 0.007,
-            'xview2': 0.01
+            'xview2': 0.1
         }
         args.lr = lrs[args.dataset.lower()] / (4 * len(args.gpu_ids)) * args.batch_size
 

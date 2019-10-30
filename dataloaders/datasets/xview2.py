@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from mypath import Path
 from torchvision import transforms
 from dataloaders import custom_transforms as tr
+import random
 
 
 class XView2Segmentation(Dataset):
@@ -83,8 +84,10 @@ class XView2Segmentation(Dataset):
     def transform_tr(self, sample):
         composed_transforms = transforms.Compose([
             tr.RandomHorizontalFlip(),
+            tr.RandomVerticalFlip(),
+            tr.RandomRotate(30),
+            tr.ColorJitter(brightness=[0.6, 1.5], contrast=[0.6, 1.5], saturation=[0.6, 1.5], hue=[0, 0.5]),
             tr.RandomScaleCrop(base_size=self.args.base_size, crop_size=self.args.crop_size),
-            tr.RandomGaussianBlur(),
             tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             tr.ToTensor()])
 

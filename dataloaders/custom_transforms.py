@@ -1,15 +1,19 @@
 import torch
+from torchvision.transforms import functional as F
 import random
 import numpy as np
 
 from PIL import Image, ImageOps, ImageFilter
 
+
 class Normalize(object):
     """Normalize a tensor image with mean and standard deviation.
+
     Args:
         mean (tuple): means for each channel.
         std (tuple): standard deviations for each channel.
     """
+
     def __init__(self, mean=(0., 0., 0.), std=(1., 1., 1.)):
         self.mean = mean
         self.std = std
@@ -22,7 +26,7 @@ class Normalize(object):
         preimg = np.array(preimg).astype(np.float32)
         postimg = np.array(postimg).astype(np.float32)
         mask = np.array(mask).astype(np.float32)
-        
+
         preimg /= 255.0
         preimg -= self.mean
         preimg /= self.std
@@ -69,6 +73,106 @@ class RandomHorizontalFlip(object):
             preimg = preimg.transpose(Image.FLIP_LEFT_RIGHT)
             postimg = postimg.transpose(Image.FLIP_LEFT_RIGHT)
             mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
+
+        return {'pre_image': preimg,
+                'post_image': postimg,
+                'label': mask}
+
+class RandomVerticalFlip(object):
+    def __call__(self, sample):
+        preimg = sample['pre_image']
+        postimg = sample['post_image']
+        mask = sample['label']
+
+        if random.random() < 0.5:
+            preimg = preimg.transpose(Image.FLIP_TOP_BOTTOM)
+            postimg = postimg.transpose(Image.FLIP_TOP_BOTTOM)
+            mask = mask.transpose(Image.FLIP_TOP_BOTTOM)
+
+        return {'pre_image': preimg,
+                'post_image': postimg,
+                'label': mask}
+
+class ColorJitter(object):
+    def __init__(self, brightness, saturation, contrast, hue):
+        self.brightness = brightness
+        self.saturation = saturation
+        self.contrast = contrast
+        self.hue = hue
+
+    def check_params(self):
+        if self.brightness is not None:
+            assert self.brightness[0] < self.brightness[1]
+            assert all(i >= 0 for i in self.brightness) is True
+
+        if self.contrast is not None:
+            assert self.contrast[0] < self.contrast[1]
+            assert all(i >= 0 for i in self.contrast) is True
+
+        if self.saturation is not None:
+            assert self.saturation[0] < self.saturation[1]
+            assert all(i >= 0 for i in self.saturation) is True
+
+        if self.hue is not None:
+            assert self.hue[0] < self.hue[1]
+            assert all(i >= -0.5 for i in self.hue) is True
+            assert all(i <= 0.5 for i in self.hue) is True
+
+
+    def __call__(self, sample):
+        self.check_params()
+
+        preimg = sample['pre_image']
+        postimg = sample['post_image']
+        mask = sample['label']
+
+        if self.brightness is not None:
+            """
+            Brightness Factor
+
+            n=0 gives a black image,
+            n=1 gives the original image
+            n>1 increases the brightness by a factor of n.
+            """
+            brightness_factor = random.uniform(self.brightness[0], self.brightness[1])
+            preimg = F.adjust_brightness(preimg, brightness_factor)
+            postimg = F.adjust_brightness(postimg, brightness_factor)
+
+        if self.contrast is not None:
+            """
+            Contrast Factor
+
+            n=0 gives a grey image,
+            n=1 gives the original image
+            n>1 increases the contrast by a factor of n.
+            """
+            contrast_factor = random.uniform(self.contrast[0], self.contrast[1])
+            preimg = F.adjust_contrast(preimg, contrast_factor)
+            postimg = F.adjust_contrast(postimg, contrast_factor)
+
+        if self.saturation is not None:
+            """
+            Saturation Factor
+
+            n=0 gives a black & white image,
+            n=1 gives the original image
+            n>1 increases the saturation by a factor of n.
+            """
+            saturation_factor = random.uniform(self.saturation[0], self.saturation[1])
+            preimg = F.adjust_saturation(preimg, saturation_factor)
+            postimg = F.adjust_saturation(postimg, saturation_factor)
+
+        if self.hue is not None:
+            """
+            Hue Factor
+
+            Refer https://pytorch.org/docs/0.4.1/torchvision/transforms.html?highlight=color%20jitter#torchvision.transforms.functional.adjust_hue
+
+            -0.5 < 0 < 0.5
+            """
+            hue_factor = random.uniform(self.hue[0], self.hue[1])
+            preimg = F.adjust_hue(preimg, hue_factor)
+            postimg = F.adjust_hue(postimg, hue_factor)
 
         return {'pre_image': preimg,
                 'post_image': postimg,

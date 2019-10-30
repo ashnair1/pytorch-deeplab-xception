@@ -23,6 +23,7 @@ class Decoder(nn.Module):
         self.conv1 = nn.Conv2d(low_level_inplanes, 48, 1, bias=False)
         self.bn1 = BatchNorm(48)
         self.relu = nn.ReLU()
+        #self.dropout2d = nn.Dropout2d(0.5)
         self.last_conv = nn.Sequential(nn.Conv2d(304, 256, kernel_size=3, stride=1, padding=1, bias=False),
                                        BatchNorm(256),
                                        nn.ReLU(),
@@ -42,6 +43,7 @@ class Decoder(nn.Module):
 
         x = F.interpolate(x, size=low_level_feat.size()[2:], mode='bilinear', align_corners=True)
         x = torch.cat((x, low_level_feat), dim=1)
+        #x = self.dropout2d(x)
         x = self.last_conv(x)
 
         return x

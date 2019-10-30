@@ -135,6 +135,7 @@ class AASPP(nn.Module):
         self.bn1 = BatchNorm(256)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
+        #self.dropout2d = nn.Dropout2d(0.5)
         #self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
         self._init_weight()
 
@@ -147,6 +148,7 @@ class AASPP(nn.Module):
         x5 = self.global_avg_pool(x)
         x5 = F.interpolate(x5, size=x4.size()[2:], mode='bilinear', align_corners=True)
         x = torch.cat((x1, x2, x3, x4, x5), dim=1)
+        #x = self.dropout2d(x)
 
         x = self.conv1(x)
         x = self.bn1(x)
