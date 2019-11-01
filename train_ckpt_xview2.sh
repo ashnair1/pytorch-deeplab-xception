@@ -1,8 +1,8 @@
 python train.py \
  --backbone drn \
- --lr 0.05 \
+ --lr 0.1 \
  --workers 4 \
- --epochs 50 \
+ --epochs 100 \
  --batch-size 32 \
  --loss-type ce \
  --base-size 1024 \

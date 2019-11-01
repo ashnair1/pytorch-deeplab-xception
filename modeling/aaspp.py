@@ -131,7 +131,9 @@ class AASPP(nn.Module):
         # AASPP
         #self.conv1 = nn.Conv2d(16640, 256, 1, bias=False)
         # DRN
-        self.conv1 = nn.Conv2d(4352, 256, 1, bias=False)
+        #self.conv1 = nn.Conv2d(4352, 256, 1, bias=False)
+        # With the Siamese Module
+        self.conv1 = nn.Conv2d(2304, 256, 1, bias=False)
         self.bn1 = BatchNorm(256)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)

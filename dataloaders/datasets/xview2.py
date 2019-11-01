@@ -86,7 +86,7 @@ class XView2Segmentation(Dataset):
             tr.RandomHorizontalFlip(),
             tr.RandomVerticalFlip(),
             tr.RandomRotate(30),
-            tr.ColorJitter(brightness=[0.6, 1.5], contrast=[0.6, 1.5], saturation=[0.6, 1.5], hue=[0, 0.5]),
+            #tr.ColorJitter(brightness=[0.6, 1.5], contrast=[0.6, 1.5], saturation=[0.6, 1.5], hue=[0, 0.5]),
             tr.RandomScaleCrop(base_size=self.args.base_size, crop_size=self.args.crop_size),
             tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             tr.ToTensor()])
