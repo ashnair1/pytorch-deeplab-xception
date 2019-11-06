@@ -86,10 +86,10 @@ class SiameseDeepLab(nn.Module):
             BatchNorm = nn.BatchNorm2d
 
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
-        self.siamese = Siamese(3,3,3,1,1, BatchNorm)
-        #self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
-        self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=False)
-        self.decoder = build_decoder(num_classes, backbone, BatchNorm, siamese=False)
+        #self.siamese = Siamese(3,3,3,1,1, BatchNorm)
+        self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
+        #self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=True)
+        self.decoder = build_decoder(num_classes, backbone, BatchNorm, siamese=True)
 
         if freeze_bn:
             self.freeze_bn()
@@ -97,19 +97,19 @@ class SiameseDeepLab(nn.Module):
     def forward(self, input, input1):
 
 
-        x = self.siamese(input, input1)
-        x, low_level_feat = self.backbone(input)
+        #x = self.siamese(input, input1)
+        #x, low_level_feat = self.backbone(input)
 
         # Push separately through backbone and then concatenate
         # ######################################################################
-        # x, low_level_feat = self.backbone(input)
-        # x1, low_level_feat1 = self.backbone(input1)\
-        # x = torch.cat((x, x1), dim=1)
-        # low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
+        x, low_level_feat = self.backbone(input)
+        x1, low_level_feat1 = self.backbone(input1)
+        x = torch.cat((x, x1), dim=1)
+        low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
         ########################################################################
 
-        #x = self.aspp(x)
-        x = self.aaspp(x)
+        x = self.aspp(x)
+        #x = self.aaspp(x)
         x = self.decoder(x, low_level_feat)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
 
@@ -133,7 +133,7 @@ class SiameseDeepLab(nn.Module):
                             yield p
 
     def get_10x_lr_params(self):
-        modules = [self.aaspp, self.decoder]
+        modules = [self.aspp, self.decoder]
         for i in range(len(modules)):
             for m in modules[i].named_modules():
                 if isinstance(m[1], nn.Conv2d) or isinstance(m[1], SynchronizedBatchNorm2d) \

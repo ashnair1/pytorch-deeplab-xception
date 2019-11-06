@@ -77,9 +77,6 @@ class ASPP(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        import pdb
-        pdb.set_trace()
-
         return self.dropout(x)
 
     def _init_weight(self):

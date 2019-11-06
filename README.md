@@ -98,6 +98,10 @@ singularity exec ./singularity/deeplab.sif python -c "import torch; x = torch.em
 # Begin training
 singularity exec --nv ./singularity/deeplab.sif sh train.sh
 ```
+### Notes:
+Both options will need you to point to the previous checkpoint via the resume argument.
+1. Resume Training: If you stopped training at say epoch 50 and want to continue training for another 20 epochs. You need to set the epochs parameter to 70.
+2. Fine tuning: Switch on the --ft flag.
 
 ### Acknowledgement
 [PyTorch-Encoding](https://github.com/zhanghang1989/PyTorch-Encoding)
