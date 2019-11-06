@@ -6,6 +6,7 @@ from tqdm import tqdm
 from mypath import Path
 from dataloaders import make_data_loader
 from modeling.sync_batchnorm.replicate import patch_replication_callback
+from modeling.deeplab import *
 from modeling.siamesedeeplab import *
 from utils.loss import SegmentationLosses
 from utils.calculate_weights import calculate_weigths_labels
@@ -29,13 +30,21 @@ class Trainer(object):
         # Define Dataloader
         kwargs = {'num_workers': args.workers, 'pin_memory': True}
         self.train_loader, self.val_loader, self.test_loader, self.nclass = make_data_loader(args, **kwargs)
+        self.siamese = args.siamese
 
         # Define network
-        model = SiameseDeepLab(num_classes=self.nclass,
-                               backbone=args.backbone,
-                               output_stride=args.out_stride,
-                               sync_bn=args.sync_bn,
-                               freeze_bn=args.freeze_bn)
+        if self.siamese is False:
+            model = DeepLab(num_classes=self.nclass,
+                            backbone=args.backbone,
+                            output_stride=args.out_stride,
+                            sync_bn=args.sync_bn,
+                            freeze_bn=args.freeze_bn)
+        else:
+            model = SiameseDeepLab(num_classes=self.nclass,
+                                   backbone=args.backbone,
+                                   output_stride=args.out_stride,
+                                   sync_bn=args.sync_bn,
+                                   freeze_bn=args.freeze_bn)
 
         train_params = [{'params': model.get_1x_lr_params(), 'lr': args.lr},
                         {'params': model.get_10x_lr_params(), 'lr': args.lr * 10}]
@@ -98,27 +107,49 @@ class Trainer(object):
         tbar = tqdm(self.train_loader)
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
-            preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
-            if self.args.cuda:
-                preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
-            self.scheduler(self.optimizer, i, epoch, self.best_pred)
-            self.optimizer.zero_grad()
-            output = self.model(preimage, postimage)
-            loss = self.criterion(output, target)
-            loss.backward()
-            self.optimizer.step()
-            train_loss += loss.item()
-            tbar.set_description('Train loss: %.3f' % (train_loss / (i + 1)))
-            self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
+            if self.siamese is True:
+                preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
+                if self.args.cuda:
+                    preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
+                self.scheduler(self.optimizer, i, epoch, self.best_pred)
+                self.optimizer.zero_grad()
+                output = self.model(preimage, postimage)
+                loss = self.criterion(output, target)
+                loss.backward()
+                self.optimizer.step()
+                train_loss += loss.item()
+                tbar.set_description('Train loss: %.3f' % (train_loss / (i + 1)))
+                self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
 
-            # Show 10 * 3 inference results each epoch
-            if i % (num_img_tr // 2) == 0:
-                global_step = i + num_img_tr * epoch
-                self.summary.visualize_image(self.writer, self.args.dataset, postimage, target, output, global_step)
-                #self.summary.visualize_image_pre_post(self.writer, self.args.dataset, preimage, postimage, target, output, global_step)
+                # Show 10 * 3 inference results each epoch
+                if i % (num_img_tr // 2) == 0:
+                    global_step = i + num_img_tr * epoch
+                    self.summary.visualize_image(self.writer, self.args.dataset, postimage, target, output, global_step)
+                    #self.summary.visualize_image_pre_post(self.writer, self.args.dataset, preimage, postimage, target, output, global_step)
+                num_img = preimage.data.shape[0]
+            else:
+                image, target = sample['image'], sample['label']
+                if self.args.cuda:
+                    image, target = image.cuda(), target.cuda()
+                self.scheduler(self.optimizer, i, epoch, self.best_pred)
+                self.optimizer.zero_grad()
+                output = self.model(image)
+                loss = self.criterion(output, target)
+                loss.backward()
+                self.optimizer.step()
+                train_loss += loss.item()
+                tbar.set_description('Train loss: %.3f' % (train_loss / (i + 1)))
+                self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
+
+                # Show 10 * 3 inference results each epoch
+                if i % (num_img_tr // 2) == 0:
+                    global_step = i + num_img_tr * epoch
+                    self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
+                    #self.summary.visualize_image_pre_post(self.writer, self.args.dataset, preimage, postimage, target, output, global_step)
+                num_img = image.data.shape[0]
 
         self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
-        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + preimage.data.shape[0]))
+        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + num_img))
         print('Loss: %.3f' % train_loss)
 
         if self.args.no_val:
@@ -138,11 +169,21 @@ class Trainer(object):
         tbar = tqdm(self.val_loader, desc='\r')
         test_loss = 0.0
         for i, sample in enumerate(tbar):
-            preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
-            if self.args.cuda:
-                preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
-            with torch.no_grad():
-                output = self.model(preimage, postimage)
+            if self.siamese is True:
+                preimage, postimage, target = sample['pre_image'], sample['post_image'], sample['label']
+                if self.args.cuda:
+                    preimage, postimage, target = preimage.cuda(), postimage.cuda(), target.cuda()
+                with torch.no_grad():
+                    output = self.model(preimage, postimage)
+                num_img = preimage.data.shape[0]
+            else:
+                image, target = sample['image'], sample['label']
+                if self.args.cuda:
+                    image, target = image.cuda(), target.cuda()
+                with torch.no_grad():
+                    output = self.model(image)
+                num_img = image.data.shape[0]
+
             loss = self.criterion(output, target)
             test_loss += loss.item()
             tbar.set_description('Test loss: %.3f' % (test_loss / (i + 1)))
@@ -163,7 +204,7 @@ class Trainer(object):
         self.writer.add_scalar('val/Acc_class', acc_class, epoch)
         self.writer.add_scalar('val/fwIoU', fwIoU, epoch)
         print('Validation:')
-        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + preimage.data.shape[0]))
+        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + num_img))
         print("Acc:{}, Acc_class:{}, mIoU:{}, fwIoU: {}".format(acc, acc_class, mIoU, fwIoU))
         print('Loss: %.3f' % test_loss)
 
@@ -178,7 +219,6 @@ class Trainer(object):
                 'best_pred': self.best_pred,
             }, is_best)
 
-
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
     parser.add_argument('--backbone', type=str, default='resnet',
@@ -187,7 +227,7 @@ def main():
     parser.add_argument('--out-stride', type=int, default=16,
                         help='network output stride (default: 8)')
     parser.add_argument('--dataset', type=str, default='pascal',
-                        choices=['pascal', 'coco', 'cityscapes', 'xview2'],
+                        choices=['pascal', 'coco', 'cityscapes', 'xview2', 'xview2_single'],
                         help='dataset name (default: pascal)')
     parser.add_argument('--use-sbd', action='store_true', default=True,
                         help='whether to use SBD dataset (default: True)')
@@ -250,6 +290,9 @@ def main():
                         help='evaluuation interval (default: 1)')
     parser.add_argument('--no-val', action='store_true', default=False,
                         help='skip validation during training')
+    # Siamese - Accept two inputs
+    parser.add_argument('--siamese', action='store_true', default=False,
+                        help='enable siamese mode')
 
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()

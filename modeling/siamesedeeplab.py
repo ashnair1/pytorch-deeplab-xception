@@ -71,6 +71,28 @@ class Siamese(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+class GCB(nn.Module):
+    def __init__(self, inplanes, planes, kh=7, kw=7):
+        super(GCB, self).__init__()
+        self.conv_l1 = nn.Conv2d(inplanes, 1024, kernel_size=(kh, 1),
+                                 padding=(int(kh/2), 0))
+        self.conv_l2 = nn.Conv2d(1024, planes, kernel_size=(1, kw),
+                                 padding=(0, int(kw/2)))
+        self.conv_r1 = nn.Conv2d(inplanes, 1024, kernel_size=(1, kw),
+                                 padding=(0, int(kw/2)))
+        self.conv_r2 = nn.Conv2d(1024, planes, kernel_size=(kh, 1),
+                                 padding=(int(kh/2), 0))
+        self.conv_g1 = nn.Conv2d(planes, planes, kernel_size=3, padding=1)
+        self.conv_g2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        x_l = self.conv_l2(self.conv_l1(x))
+        x_r = self.conv_r2(self.conv_r1(x))
+        x = x_l + x_r
+        # Residual Block
+        r = self.conv_g1(F.relu(x))
+        r = self.conv_g2(F.relu(r))
+        return x + r
 
 
 class SiameseDeepLab(nn.Module):
@@ -87,6 +109,7 @@ class SiameseDeepLab(nn.Module):
 
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
         #self.siamese = Siamese(3,3,3,1,1, BatchNorm)
+        self.gcb = GCB(1024, 1024)
         self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
         #self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=True)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm, siamese=True)
@@ -100,13 +123,16 @@ class SiameseDeepLab(nn.Module):
         #x = self.siamese(input, input1)
         #x, low_level_feat = self.backbone(input)
 
-        # Push separately through backbone and then concatenate
+        # Push separately through backbone (encoder) and then concatenate
         # ######################################################################
         x, low_level_feat = self.backbone(input)
         x1, low_level_feat1 = self.backbone(input1)
         x = torch.cat((x, x1), dim=1)
         low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
         ########################################################################
+
+        # Pass to Global Convolutional Block
+        x = self.gcb(x)
 
         x = self.aspp(x)
         #x = self.aaspp(x)

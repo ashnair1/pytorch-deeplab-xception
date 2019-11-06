@@ -11,6 +11,8 @@ class Path(object):
             return '/path/to/datasets/coco/'
         elif dataset == 'xview2':
             return './data/xview2'
+        elif dataset == 'xview2_single':
+            return './data/xview2_single'
         else:
             print('Dataset {} not available.'.format(dataset))
             raise NotImplementedError

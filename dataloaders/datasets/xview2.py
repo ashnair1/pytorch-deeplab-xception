@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from mypath import Path
 from torchvision import transforms
-from dataloaders import custom_transforms as tr
+from dataloaders import siamese_transforms as tr
 import random
 
 

@@ -32,6 +32,9 @@ def decode_segmap(label_mask, dataset, plot=False):
     elif dataset == 'xview2':
         n_classes = 5
         label_colours = get_xview2_labels()
+    elif dataset == 'xview2_single':
+        n_classes = 2
+        label_colours = get_xview2_single_labels()
     else:
         raise NotImplementedError
 
@@ -83,6 +86,17 @@ def get_xview2_labels():
         [34, 139, 34],
         [255, 165, 0],
         [255, 0, 0]])
+
+
+def get_xview2_single_labels():
+    """Load the mapping that associates xview2 classes with label colors.
+
+    Returns:
+        np.ndarray with dimensions (5, 3)
+    """
+    return np.array([
+        [0, 0, 0],
+        [211, 211, 211]])
 
 
 def get_cityscapes_labels():
