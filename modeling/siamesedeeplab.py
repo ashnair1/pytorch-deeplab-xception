@@ -71,6 +71,7 @@ class Siamese(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+
 class GCB(nn.Module):
     def __init__(self, inplanes, planes, kh=7, kw=7):
         super(GCB, self).__init__()
