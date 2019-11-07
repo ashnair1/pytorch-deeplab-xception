@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from modeling.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from modeling.aspp import build_aspp
+from modeling.aaspp import build_aaspp
 from modeling.decoder import build_decoder
 from modeling.backbone import build_backbone
 
@@ -19,7 +20,8 @@ class DeepLab(nn.Module):
             BatchNorm = nn.BatchNorm2d
 
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
-        self.aspp = build_aspp(backbone, output_stride, BatchNorm)
+        #self.aspp = build_aspp(backbone, output_stride, BatchNorm)
+        self.aaspp = build_aaspp(backbone, output_stride, BatchNorm)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm)
 
         if freeze_bn:
@@ -27,7 +29,8 @@ class DeepLab(nn.Module):
 
     def forward(self, input):
         x, low_level_feat = self.backbone(input)
-        x = self.aspp(x)
+        #x = self.aspp(x)
+        x = self.aaspp(x)
         x = self.decoder(x, low_level_feat)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
 
@@ -51,7 +54,7 @@ class DeepLab(nn.Module):
                             yield p
 
     def get_10x_lr_params(self):
-        modules = [self.aspp, self.decoder]
+        modules = [self.aaspp, self.decoder]
         for i in range(len(modules)):
             for m in modules[i].named_modules():
                 if isinstance(m[1], nn.Conv2d) or isinstance(m[1], SynchronizedBatchNorm2d) \
@@ -67,5 +70,3 @@ if __name__ == "__main__":
     input = torch.rand(1, 3, 513, 513)
     output = model(input)
     print(output.size())
-
-

@@ -4,11 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from modeling.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 
+
 class _AtrousConvBlock(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, padding, dilation, BatchNorm):
         super(_AtrousConvBlock, self).__init__()
         self.atrous_conv = nn.Conv2d(inplanes, planes, kernel_size=kernel_size,
-                                            stride=1, padding=padding, dilation=dilation, bias=False)
+                                     stride=1, padding=padding, dilation=dilation, bias=False)
         self.bn = BatchNorm(planes)
         self.relu = nn.ReLU()
 
@@ -51,41 +52,24 @@ class _AASPPModule(nn.Module):
 #         return x.view(N, -1)
 
 
-# class _FusionModule(nn.Module):
-#     def __init__(self, inplanes, planes, kernel_size, BatchNorm):
-#         super(_FusionModule, self).__init__()
+class _FusionModule(nn.Module):
+    def __init__(self, inplanes, planes, kernel_size, BatchNorm):
+        super(_FusionModule, self).__init__()
 
-#         # Standard Convolutions
-#         self.conv_list = nn.ModuleList([nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1),
-#                                           BatchNorm(planes),
-#                                           nn.ReLU(),
-#                                           nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1),
-#                                           BatchNorm(planes),
-#                                           nn.ReLU()])
-#         self.conv_block = nn.Sequential(*self.conv_list)
-
-#         #self.linear = nn.Sequential(nn.Conv2d(planes, planes, kernel_size=1)
-#         #                            #nn.Linear(256*33*33, 1),
-#         #                            Flatten(),
-#         #                            )
+        # Standard Convolutions
+        self.conv_list = nn.ModuleList([nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1),
+                                        BatchNorm(planes),
+                                        nn.ReLU(),
+                                        nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1),
+                                        BatchNorm(planes),
+                                        nn.ReLU(),
+                                        nn.Conv2d(planes, planes, kernel_size=32, stride=1, padding=0),
+                                        nn.ConvTranspose2d(planes, planes, kernel_size=32, stride=1, padding=0)])
+        self.fusion_block = nn.Sequential(*self.conv_list)
 
 
-
-
-#         self.trace = []
-
-#     def forward(self, x):
-
-#         xf = self.conv_block(x)
-#         ###########################
-#         xf = torch.flatten(xf, 1)
-#         xf = self.linear(xf)
-#         xf = 'blah'
-#         ########################
-#         # Reshape
-#         xf = xf.view(-1, 256, 33, 33)
-
-#         return x
+    def forward(self, x):
+        return self.fusion_block(x)
 
 
 class AASPP(nn.Module):
@@ -104,17 +88,15 @@ class AASPP(nn.Module):
         if output_stride == 16:
             dilations = [[1],
                          [3, 6, 4, 2],
-                         [6, 12, 6, 4], 
+                         [6, 12, 6, 4],
                          [12, 18, 12, 6]]
         elif output_stride == 8:
             dilations = [[1],
                          [6, 12, 8, 4],
-                         [12, 24, 12, 8], 
+                         [12, 24, 12, 8],
                          [24, 36, 24, 12]]
         else:
             raise NotImplementedError
-
-        
 
         # ASPP 1x1 convolution
         self.aaspp1 = _AASPPModule(inplanes, 256, 1, dilations=dilations[0], BatchNorm=BatchNorm)
@@ -138,7 +120,7 @@ class AASPP(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
         #self.dropout2d = nn.Dropout2d(0.5)
-        #self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
+        self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
         self._init_weight()
 
     def forward(self, x):
@@ -149,6 +131,7 @@ class AASPP(nn.Module):
         x4 = self.aaspp4(x)
         x5 = self.global_avg_pool(x)
         x5 = F.interpolate(x5, size=x4.size()[2:], mode='bilinear', align_corners=True)
+        xf = self.fusion(x)
         x = torch.cat((x1, x2, x3, x4, x5), dim=1)
         #x = self.dropout2d(x)
 
@@ -156,14 +139,19 @@ class AASPP(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        #assert x.shape == xf.shape
-        #x.add_(xf) 
+        if x.shape != xf.shape:
+            raise AssertionError("AASPP o/p shape {} and Fusion o/p shape {} unequal".format(x.shape, xf.shape))
+        x.add_(xf)
 
         return self.dropout(x)
 
     def _init_weight(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
+                # n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                # m.weight.data.normal_(0, math.sqrt(2. / n))
+                torch.nn.init.kaiming_normal_(m.weight)
+            if isinstance(m, nn.ConvTranspose2d):
                 # n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 # m.weight.data.normal_(0, math.sqrt(2. / n))
                 torch.nn.init.kaiming_normal_(m.weight)
