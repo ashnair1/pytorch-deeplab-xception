@@ -38,7 +38,6 @@ class Fusion(nn.Module):
 
         self.channel_attention = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                                nn.Conv2d(256, 128, kernel_size=1, stride=1),
-                                               nn.Conv2d(512, 128, kernel_size=1, stride=1),
                                                nn.ReLU(),
                                                nn.Conv2d(128, 48, kernel_size=1, stride=1),
                                                nn.Sigmoid())
