@@ -8,7 +8,8 @@ class _ASPPModule(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, padding, dilation, BatchNorm):
         super(_ASPPModule, self).__init__()
         self.atrous_conv = nn.Conv2d(inplanes, planes, kernel_size=kernel_size,
-                                            stride=1, padding=padding, dilation=dilation, bias=False)
+                                     stride=1, padding=padding, dilation=dilation,
+                                     groups=1, bias=False)
         self.bn = BatchNorm(planes)
         self.relu = nn.ReLU()
 
@@ -95,3 +96,4 @@ class ASPP(nn.Module):
 
 def build_aspp(backbone, output_stride, BatchNorm, siamese=False):
     return ASPP(backbone, output_stride, BatchNorm, siamese)
+

@@ -9,7 +9,8 @@ class _AtrousConvBlock(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, padding, dilation, BatchNorm):
         super(_AtrousConvBlock, self).__init__()
         self.atrous_conv = nn.Conv2d(inplanes, planes, kernel_size=kernel_size,
-                                     stride=1, padding=padding, dilation=dilation, bias=False)
+                                     stride=1, padding=padding, dilation=dilation,
+                                     groups=inplanes, bias=False)
         self.bn = BatchNorm(planes)
         self.relu = nn.ReLU()
 
@@ -37,9 +38,19 @@ class _AASPPModule(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, dilations, BatchNorm):
         super(_AASPPModule, self).__init__()
 
-        self.atrous_list = nn.ModuleList([_AtrousConvBlock(inplanes, planes, kernel_size, dilations[0], dilations[0], BatchNorm)] +
-                                         [_AtrousConvBlock(planes,planes, kernel_size, dilation, dilation, BatchNorm) for dilation in dilations[1:]])
-        self.atrous_blocks = nn.Sequential(*self.atrous_list) 
+        self.atrous_list = nn.ModuleList([_AtrousConvBlock(inplanes,
+                                                           planes,
+                                                           kernel_size,
+                                                           dilations[0],
+                                                           dilations[0],
+                                                           BatchNorm)] +
+                                         [_AtrousConvBlock(planes,
+                                                           planes,
+                                                           kernel_size,
+                                                           dilation,
+                                                           dilation,
+                                                           BatchNorm) for dilation in dilations[1:]])
+        self.atrous_blocks = nn.Sequential(*self.atrous_list)
         self.trace = []
 
     def forward(self, x):
@@ -99,10 +110,10 @@ class AASPP(nn.Module):
             raise NotImplementedError
 
         # ASPP 1x1 convolution
-        self.aaspp1 = _AASPPModule(inplanes, 256, 1, dilations=dilations[0], BatchNorm=BatchNorm)
-        self.aaspp2 = _AASPPModule(inplanes, 256, 3, dilations=dilations[1], BatchNorm=BatchNorm)
-        self.aaspp3 = _AASPPModule(inplanes, 256, 3, dilations=dilations[2], BatchNorm=BatchNorm)
-        self.aaspp4 = _AASPPModule(inplanes, 256, 3, dilations=dilations[3], BatchNorm=BatchNorm)
+        self.aaspp1 = _AASPPModule(inplanes, 512, 1, dilations=dilations[0], BatchNorm=BatchNorm)
+        self.aaspp2 = _AASPPModule(inplanes, 512, 3, dilations=dilations[1], BatchNorm=BatchNorm)
+        self.aaspp3 = _AASPPModule(inplanes, 512, 3, dilations=dilations[2], BatchNorm=BatchNorm)
+        self.aaspp4 = _AASPPModule(inplanes, 512, 3, dilations=dilations[3], BatchNorm=BatchNorm)
 
         self.global_avg_pool = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
                                              nn.Conv2d(inplanes, 256, 1, stride=1, bias=False),
@@ -119,12 +130,11 @@ class AASPP(nn.Module):
         self.bn1 = BatchNorm(256)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
-        #self.dropout2d = nn.Dropout2d(0.5)
+        self.dropout2d = nn.Dropout2d(0.5)
         self.fusion = _FusionModule(inplanes, 256, 3, BatchNorm=BatchNorm)
         self._init_weight()
 
     def forward(self, x):
-        #xf = self.fusion(x)
         x1 = self.aaspp1(x)
         x2 = self.aaspp2(x)
         x3 = self.aaspp3(x)
@@ -141,7 +151,8 @@ class AASPP(nn.Module):
 
         if x.shape != xf.shape:
             raise AssertionError("AASPP o/p shape {} and Fusion o/p shape {} unequal".format(x.shape, xf.shape))
-        x.add_(xf)
+        #x.add_(xf)
+        x = torch.add(x, xf)
 
         return self.dropout(x)
 

@@ -158,7 +158,7 @@ class RandomRotate(object):
     def __call__(self, sample):
         img = sample['image']
         mask = sample['label']
-        rotate_degree = random.uniform(-1*self.degree, self.degree)
+        rotate_degree = random.uniform(-1 * self.degree, self.degree)
         img = img.rotate(rotate_degree, Image.BILINEAR)
         mask = mask.rotate(rotate_degree, Image.NEAREST)
 
@@ -179,7 +179,7 @@ class RandomGaussianBlur(object):
 
 
 class RandomScaleCrop(object):
-    def __init__(self, base_size, crop_size, fill=0):
+    def __init__(self, base_size, crop_size, fill=255):
         self.base_size = base_size
         self.crop_size = crop_size
         self.fill = fill

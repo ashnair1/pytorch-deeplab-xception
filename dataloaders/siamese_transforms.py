@@ -214,7 +214,7 @@ class RandomGaussianBlur(object):
 
 
 class RandomScaleCrop(object):
-    def __init__(self, base_size, crop_size, fill=0):
+    def __init__(self, base_size, crop_size, fill=255):
         self.base_size = base_size
         self.crop_size = crop_size
         self.fill = fill

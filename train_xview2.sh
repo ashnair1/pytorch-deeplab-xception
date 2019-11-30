@@ -12,4 +12,5 @@ python train.py \
  --ft \
  --use-balanced-weights \
  --eval-interval 1 \
- --dataset xview2
+ --dataset xview2 \
+ --siamese

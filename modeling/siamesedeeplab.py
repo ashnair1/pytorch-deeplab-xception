@@ -5,7 +5,9 @@ from modeling.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from modeling.aspp import build_aspp
 from modeling.aaspp import build_aaspp
 from modeling.decoder import build_decoder
+from modeling.fusion import build_fusion
 from modeling.backbone import build_backbone
+
 
 class Siamese(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, padding, dilation, BatchNorm):
@@ -95,6 +97,17 @@ class GCB(nn.Module):
         r = self.conv_g2(F.relu(r))
         return x + r
 
+    def _init_weight(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, SynchronizedBatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
 
 class SiameseDeepLab(nn.Module):
     def __init__(self, backbone='resnet', output_stride=16, num_classes=21,
@@ -110,16 +123,18 @@ class SiameseDeepLab(nn.Module):
 
         self.backbone = build_backbone(backbone, output_stride, BatchNorm)
         #self.siamese = Siamese(3,3,3,1,1, BatchNorm)
-        self.gcb = GCB(1024, 1024)
-        self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
+        #self.gcb = GCB(1024, 1024)
+        #self.aspp = build_aspp(backbone, output_stride, BatchNorm, siamese=True)
         #self.aaspp = build_aaspp(backbone, output_stride, BatchNorm, siamese=True)
+        self.aspp1 = build_aspp(backbone, output_stride, BatchNorm, siamese=False)
+        self.aspp2 = build_aspp(backbone, output_stride, BatchNorm, siamese=False)
         self.decoder = build_decoder(num_classes, backbone, BatchNorm, siamese=True)
+        self.fusion = build_fusion(num_classes, backbone, BatchNorm, siamese=False)
 
         if freeze_bn:
             self.freeze_bn()
 
     def forward(self, input, input1):
-
 
         #x = self.siamese(input, input1)
         #x, low_level_feat = self.backbone(input)
@@ -128,16 +143,21 @@ class SiameseDeepLab(nn.Module):
         # ######################################################################
         x, low_level_feat = self.backbone(input)
         x1, low_level_feat1 = self.backbone(input1)
-        x = torch.cat((x, x1), dim=1)
-        low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
+
+
+        sum1 = torch.add(low_level_feat, low_level_feat1)
+        #x = torch.cat((x, x1), dim=1)
+        #low_level_feat = torch.cat((low_level_feat, low_level_feat1), dim=1)
         ########################################################################
 
         # Pass to Global Convolutional Block
-        x = self.gcb(x)
+        #x = self.gcb(x)
 
-        x = self.aspp(x)
+        x = self.aspp1(x)
+        x1 = self.aspp2(x1)
         #x = self.aaspp(x)
-        x = self.decoder(x, low_level_feat)
+        #x = self.decoder(x, low_level_feat)
+        x = self.fusion(x, x1, sum1)
         x = F.interpolate(x, size=input.size()[2:], mode='bilinear', align_corners=True)
 
         return x
@@ -160,7 +180,7 @@ class SiameseDeepLab(nn.Module):
                             yield p
 
     def get_10x_lr_params(self):
-        modules = [self.aspp, self.decoder]
+        modules = [self.aspp1, self.aspp2, self.fusion]
         for i in range(len(modules)):
             for m in modules[i].named_modules():
                 if isinstance(m[1], nn.Conv2d) or isinstance(m[1], SynchronizedBatchNorm2d) \
